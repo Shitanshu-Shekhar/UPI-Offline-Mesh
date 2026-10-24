@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: upi-offline-mesh-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: H2_CONSOLE_ENABLED
+        value: "false"

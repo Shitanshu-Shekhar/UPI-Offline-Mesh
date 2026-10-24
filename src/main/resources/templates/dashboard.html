@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UPI Offline Mesh — Educational Demo</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0; padding: 24px; background: #0d1117; color: #e6edf3;
+        }
+        h1 { margin-top: 0; color: #f0f6fc; }
+        h2 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 4px; margin-top: 32px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .grid { display: grid; gap: 16px; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+        }
+        .device {
+            border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-bottom: 8px;
+            background: #0d1117;
+        }
+        .device.bridge { border-color: #2ea043; background: #052e16; }
+        .device.offline { opacity: 0.85; }
+        .badge {
+            display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+            font-weight: 600; margin-left: 8px;
+        }
+        .badge-online { background: #2ea043; color: white; }
+        .badge-offline { background: #6e7681; color: white; }
+        .packet-id {
+            font-family: 'Consolas', 'Monaco', monospace; font-size: 11px;
+            background: #21262d; padding: 2px 6px; border-radius: 3px; margin: 2px;
+            display: inline-block;
+        }
+        button {
+            background: #238636; color: white; border: none; padding: 8px 16px;
+            border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;
+            margin: 4px;
+        }
+        button:hover { background: #2ea043; }
+        button.danger { background: #da3633; }
+        button.danger:hover { background: #f85149; }
+        button.secondary { background: #1f6feb; }
+        button.secondary:hover { background: #388bfd; }
+        input, select {
+            background: #0d1117; color: #e6edf3; border: 1px solid #30363d;
+            border-radius: 4px; padding: 6px 10px; font-size: 14px; margin: 4px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #30363d; }
+        th { color: #8b949e; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+        .status-SETTLED { color: #56d364; font-weight: 600; }
+        .status-REJECTED { color: #f85149; font-weight: 600; }
+        .status-DUPLICATE_DROPPED { color: #d29922; font-weight: 600; }
+        .status-INVALID { color: #f85149; font-weight: 600; }
+        #log {
+            background: #010409; color: #7ee787; padding: 12px; border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace; font-size: 12px;
+            max-height: 220px; overflow-y: auto; white-space: pre-wrap;
+            border: 1px solid #30363d;
+        }
+        .controls { background: #161b22; padding: 16px; border-radius: 8px;
+                    border: 1px solid #30363d; margin-bottom: 16px; }
+        .step-num {
+            display: inline-block; background: #58a6ff; color: white;
+            border-radius: 50%; width: 24px; height: 24px; text-align: center;
+            line-height: 24px; font-weight: 600; margin-right: 8px;
+        }
+        .balance { font-family: 'Consolas', monospace; color: #56d364; font-weight: 600; }
+        .small { font-size: 12px; color: #8b949e; }
+
+:root{color-scheme:dark;--bg:#07111f;--panel:#101c2d;--panel2:#14243a;--line:#243750;--muted:#8ba0b9;--text:#eef5ff;--cyan:#54d6c7;--blue:#7aa9ff;--green:#47d7a1;--amber:#ffc56d}body{padding:32px 22px;background:radial-gradient(ellipse at 12% 0%,#15304b 0,transparent 42%),linear-gradient(150deg,#07111f,#0a1422 60%,#0c1928);color:var(--text);min-height:100vh}.container{max-width:1420px}h1{font-size:clamp(28px,4vw,42px);letter-spacing:-1.5px;margin-bottom:8px}h2{color:#d9e8ff;border:0;margin:4px 0 18px;font-size:17px;letter-spacing:-.2px}.small{color:var(--muted);line-height:1.55}.controls,.card{background:linear-gradient(145deg,rgba(18,32,51,.96),rgba(12,25,41,.96));border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 40px #02081242}.controls{padding:22px;margin:26px 0}.controls h3{font-size:18px;margin-bottom:20px}.controls>div{padding:13px 14px;border:1px solid #22364e;border-radius:12px;background:#0b1726;margin:10px 0!important;line-height:2.3}.step-num{background:#1d8d91;color:#eaffff;box-shadow:0 0 0 4px #54d6c71c}.card{padding:22px}.grid{gap:18px}.grid-2{grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr)}.device{border-color:#273d56;background:#0a1726;border-radius:12px;padding:14px;margin:10px 0}.device.bridge{border-color:#19755c;background:linear-gradient(110deg,#10332f,#0b1c29)}.badge{padding:4px 10px;margin-left:10px}.badge-online{background:#11694f;color:#a8ffda}.badge-offline{background:#25384d;color:#b6c6d8}button{padding:10px 16px;border-radius:9px;background:#168367;font-weight:650;transition:transform .15s,filter .15s}button:hover{background:#1b9b78;filter:brightness(1.08);transform:translateY(-1px)}button.secondary{background:#245a9a}button.secondary:hover{background:#3271bd}button.danger{background:#713944}button.danger:hover{background:#a14652}input,select{padding:9px 12px;border-radius:8px;border-color:#304760;background:#081422}input:focus,select:focus{outline:2px solid #54d6c77c;border-color:var(--cyan)}table{border-collapse:separate;border-spacing:0;font-size:13px}th{color:#9bb0c9;font-size:11px;letter-spacing:.7px;padding:12px 10px}td{padding:12px 10px;border-bottom:1px solid #21334a}tbody tr:hover{background:#ffffff08}.balance{color:var(--green)}#log{background:#06111d;border-color:#243950;border-radius:11px;line-height:1.7;max-height:260px}.packet-id{background:#1b2e43;color:#a9c9ee;border-radius:5px}.status-SETTLED{color:var(--green)}@media(max-width:800px){body{padding:18px 12px}.grid-2{grid-template-columns:1fr}.controls{padding:15px}.controls>div{line-height:2.6}.card{padding:16px}table{font-size:12px}#tx-table{display:block;overflow-x:auto;white-space:nowrap}}
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📡 UPI Offline Mesh — Live Demo</h1>
+    <p class="small">TEST-ONLY offline wallet prototype. Queue encrypted payment requests without a connection, then reconcile when a bridge is online. A queued request is not a completed or guaranteed payment.</p>
+
+    <div class="controls">
+        <h3 style="margin-top:0">Offline wallet lab <span id="connectionBadge" class="badge badge-online">ONLINE</span></h3><p class="small">TEST MODE · Uses simulated accounts only. Queue limits and browser storage are not security controls for real funds.</p>
+
+        <div>
+            <span class="step-num">1</span><strong>Compose payment</strong> (simulates sender phone)
+            <br>
+            <select id="senderVpa">
+                <option>alice@demo</option>
+                <option>bob@demo</option>
+                <option>carol@demo</option>
+            </select>
+            →
+            <select id="receiverVpa">
+                <option>bob@demo</option>
+                <option>carol@demo</option>
+                <option>alice@demo</option>
+                <option>dave@demo</option>
+            </select>
+            ₹<input type="number" id="amount" value="500" min="1" step="0.01" inputmode="decimal" style="width: 110px">
+            PIN <input type="password" id="pin" value="" placeholder="4-digit demo" inputmode="numeric" autocomplete="off" style="width: 80px" maxlength="4" aria-label="Payment PIN">
+            <button onclick="sendPacket()">🔐 Queue encrypted test payment</button><button class="secondary" onclick="syncQueuedPackets()">↥ Sync queued packets</button>
+        </div>
+
+        <div style="margin-top: 16px">
+            <span class="step-num">2</span><strong>Gossip</strong> — packets hop device-to-device
+            <button class="secondary" onclick="gossip()">🔄 Run Gossip Round</button>
+        </div>
+
+        <div style="margin-top: 16px">
+            <span class="step-num">3</span><strong>Bridge node walks outside, hits 4G</strong>
+            <button class="secondary" onclick="flushBridges()">📡 Bridges Upload to Backend</button>
+            <span class="small">(sends test packets to the simulated ledger)</span>
+        </div>
+
+        <div style="margin-top: 16px">
+            <button class="danger" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <h2>📱 Mesh Devices</h2>
+            <div id="devices"></div><p class="small" id="queueInfo">Loading local queue…</p>
+        </div>
+
+        <div class="card">
+            <h2>🏦 Account Balances</h2>
+            <table id="accounts-table">
+                <thead><tr><th>VPA</th><th>Holder</th><th>Balance</th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <p class="small" id="cacheInfo"></p>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px">
+        <h2>📜 Transaction Ledger</h2>
+        <table id="tx-table">
+            <thead><tr>
+                <th>ID</th><th>From</th><th>To</th><th>Amount</th>
+                <th>Status</th><th>Bridge</th><th>Hops</th><th>Settled</th>
+            </tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="card" style="margin-top: 16px">
+        <h2>🪵 Activity Log</h2>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+function log(msg) {
+    const el = document.getElementById('log');
+    el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n' + el.textContent;
+}
+
+async function refresh() {
+    if (!navigator.onLine) return;
+    // Mesh state
+    const m = await fetch('/api/mesh/state').then(r => r.json());
+    const devicesDiv = document.getElementById('devices');
+    devicesDiv.innerHTML = m.devices.map(d => `
+        <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
+            <strong>${d.deviceId}</strong>
+            <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
+                ${d.hasInternet ? '🌐 4G' : '🚫 OFFLINE'}
+            </span>
+            <span class="small">holding ${d.packetCount} packet(s)</span>
+            <div>${d.packetIds.map(id => `<span class="packet-id">${id}</span>`).join('')}</div>
+        </div>
+    `).join('');
+    document.getElementById('cacheInfo').textContent =
+        `Idempotency cache size: ${m.idempotencyCacheSize}`;
+
+    // Accounts
+    const accs = await fetch('/api/accounts').then(r => r.json());
+    document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
+        <tr><td>${a.vpa}</td><td>${a.holderName}</td>
+            <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
+    `).join('');
+
+    // Transactions
+    const txs = await fetch('/api/transactions').then(r => r.json());
+    document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
+        <tr>
+            <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
+            <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
+            <td class="status-${t.status}">${t.status}</td>
+            <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
+            <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
+        </tr>
+    `).join('');
+}
+
+const QUEUE_KEY = 'offline-demo-packets-v1';
+let cachedPublicKey = null;
+function readQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } }
+function writeQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); updateQueueInfo(); }
+function updateQueueInfo() {
+    const q = readQueue(); const el = document.getElementById('queueInfo');
+    if (el) el.textContent = `${q.length} packet(s) stored on this browser · queued means not paid`;
+}
+function b64bytes(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+function toBase64(bytes) { let s=''; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s); }
+async function getCachedPublicKey() {
+    if (cachedPublicKey) return cachedPublicKey;
+    let encoded = localStorage.getItem('offline-demo-server-key-v1');
+    if (navigator.onLine) {
+        try { const r=await fetch('/api/server-key'); if (r.ok) { const d=await r.json(); encoded=d.publicKey; localStorage.setItem('offline-demo-server-key-v1',encoded); } } catch {}
+    }
+    if (!encoded) throw new Error('Connect once to cache the server key before using offline mode.');
+    cachedPublicKey = await crypto.subtle.importKey('spki', b64bytes(encoded), {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);
+    return cachedPublicKey;
+}
+async function encryptInstruction(instruction) {
+    const serverKey = await getCachedPublicKey();
+    const aesKey = await crypto.subtle.generateKey({name:'AES-GCM',length:256}, true, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const payload = new TextEncoder().encode(JSON.stringify(instruction));
+    const encrypted = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv}, aesKey, payload));
+    const rawAes = await crypto.subtle.exportKey('raw',aesKey);
+    const wrapped = new Uint8Array(await crypto.subtle.encrypt({name:'RSA-OAEP'},serverKey,rawAes));
+    const packet = new Uint8Array(wrapped.length+iv.length+encrypted.length);
+    packet.set(wrapped); packet.set(iv,wrapped.length); packet.set(encrypted,wrapped.length+iv.length);
+    return toBase64(packet);
+}
+async function sendPacket() {
+    try {
+        const sender=document.getElementById('senderVpa').value, receiver=document.getElementById('receiverVpa').value;
+        const amount=Number(document.getElementById('amount').value), pin=document.getElementById('pin').value;
+        if (sender===receiver) throw new Error('Choose two different accounts.');
+        if (!Number.isFinite(amount) || amount<=0 || amount>1000 || Math.round(amount*100)/100!==amount) throw new Error('Enter an amount from ₹0.01 to ₹1,000.00 for this test flow.');
+        if (!/^\d{4}$/.test(pin)) throw new Error('Enter a 4-digit demo PIN.');
+        const pinHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pin)))).map(b=>b.toString(16).padStart(2,'0')).join('');
+        const instruction={senderVpa:sender,receiverVpa:receiver,amount,pinHash,nonce:crypto.randomUUID(),signedAt:Date.now()};
+        const ciphertext=await encryptInstruction(instruction);
+        const packet={packetId:crypto.randomUUID(),ttl:5,createdAt:Date.now(),ciphertext};
+        const q=readQueue(); q.push(packet); writeQueue(q);
+        log(`🔐 Encrypted test packet ${packet.packetId.slice(0,8)} saved locally. Not paid or settled.`);
+        document.getElementById('pin').value='';
+        if (navigator.onLine) await syncQueuedPackets();
+    } catch(e) { log(`⚠ ${e.message || 'Could not create offline packet.'}`); }
+}
+async function syncQueuedPackets() {
+    const q=readQueue(); if (!q.length) { log('No queued packets to sync.'); return; }
+    const remaining=[];
+    for (const packet of q) {
+        try {
+            const r=await fetch('/api/mesh/inject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(packet)});
+            if (!r.ok) throw new Error(`server returned ${r.status}`);
+            log(`↥ Packet ${packet.packetId.slice(0,8)} delivered to test mesh; settlement is still pending.`);
+        } catch(e) { remaining.push(packet); log(`⏳ Packet ${packet.packetId.slice(0,8)} remains queued (${e.message}).`); }
+    }
+    writeQueue(remaining); refresh();
+}
+function updateConnectionBadge() {
+    const el=document.getElementById('connectionBadge'); if(!el)return;
+    el.textContent=navigator.onLine?'ONLINE':'OFFLINE'; el.className='badge '+(navigator.onLine?'badge-online':'badge-offline');
+}
+window.addEventListener('online',()=>{updateConnectionBadge();syncQueuedPackets();});
+window.addEventListener('offline',updateConnectionBadge);
+
+async function gossip() {
+    const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
+    log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
+    refresh();
+}
+
+async function flushBridges() {
+    const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
+    log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
+    r.results.forEach(res => {
+        log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
+            (res.reason ? ` (${res.reason})` : ''));
+    });
+    refresh();
+}
+
+async function resetMesh() {
+    await fetch('/api/mesh/reset', {method: 'POST'});
+    log('🗑 mesh + idempotency cache cleared');
+    refresh();
+}
+
+refresh();
+updateQueueInfo();
+updateConnectionBadge();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
