@@ -7,7 +7,7 @@ An educational payment-systems prototype that explores how a small, encrypted pa
 ## What it demonstrates
 
 - Browser-side hybrid encryption using RSA-OAEP/SHA-256 and AES-256-GCM.
-- Local queueing of encrypted test packets after the dashboard and server public key have been loaded online.
+- Local queueing of encrypted test packets using backend-fetched recipients and a cached server public key.
 - A software mesh simulator that gossips packets between virtual devices.
 - Bridge ingestion, packet freshness checks, tamper detection, and duplicate suppression.
 - A local H2 / deployed Render Postgres demo ledger that atomically updates seeded sandbox accounts after backend verification.
@@ -15,13 +15,13 @@ An educational payment-systems prototype that explores how a small, encrypted pa
 
 ## Demo flow
 
-1. Start the app and open `http://localhost:8080` once while online. The browser caches the dashboard and the server's current public key.
+1. Start the app and open `http://localhost:8080` once while online. The browser caches the dashboard, demo recipient list, and server's public key for later offline queueing.
 2. Choose demo accounts and enter a test amount and the sandbox PIN `1234`. The browser encrypts the payment instruction and stores the packet locally. A queued packet is **not** a payment or a promise that settlement will succeed.
 3. If the browser is online, **Sync queued packets** sends the packet to the simulated mesh. If offline, the browser keeps it queued until it can reconnect.
 4. From the payment status or Mesh Devices, run gossip to copy packets to virtual nodes, then upload bridge packets for verification.
 5. Inspect the account balances and transaction ledger to see the simulated settlement or rejection.
 
-The server creates a new RSA keypair at each startup. Packets encrypted with an old key cannot be decrypted after a restart. The local queue is stored in browser local storage and is not protected against device compromise or user modification.
+On Render, the sandbox server keypair is stored in Postgres so queued packets can still be decrypted after a normal service restart. Local development uses in-memory H2, so its key resets when the app restarts. The local queue is stored in browser local storage and is not protected against device compromise or user modification. Demo account details and the public key must be fetched while online before they are available for a fresh offline session.
 
 ## Architecture
 
@@ -98,7 +98,7 @@ Local development uses in-memory H2. The Render Blueprint provisions a same-regi
 
 ## Important limitations
 
-This is not an implementation of UPI Lite, UPI Lite X, Bluetooth/NFC device-to-device communication, or a bank wallet. Device identities and keys are not hardware-backed; offline spending limits are not enforced by a trusted wallet; the demo database and idempotency cache are process-local; the PIN is only a demo field; and there is no bank/PSP/NPCI integration, customer authentication, or production audit trail. Offline acceptance here means only that the browser can queue an encrypted test packet locally. Backend settlement happens later and may reject it.
+This is not an implementation of UPI Lite, UPI Lite X, Bluetooth/NFC device-to-device communication, or a bank wallet. Device identities and keys are not hardware-backed; offline spending limits are not enforced by a trusted wallet; the virtual mesh and duplicate cache are process-local; the local H2 database resets when the app restarts; the PIN is only a demo field; and there is no bank/PSP/NPCI integration, customer authentication, or production audit trail. Offline acceptance here means only that the browser can queue an encrypted test packet locally. Backend settlement happens later and may reject it.
 
 A real-money product would require a regulated payment partner, an approved payment design, secure wallet provisioning and device-bound controls, durable settlement/idempotency storage, monitoring, audits, and integration/certification outside this codebase.
 

@@ -7,6 +7,7 @@ import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.AccountRepository;
 import com.demo.upimesh.model.Transaction;
 import com.demo.upimesh.model.TransactionRepository;
+import com.demo.upimesh.model.ServerKeyMaterialRepository;
 import com.demo.upimesh.service.BridgeIngestionService;
 import com.demo.upimesh.service.DemoService;
 import com.demo.upimesh.service.IdempotencyService;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.concurrent.*;
@@ -35,6 +37,7 @@ class IdempotencyConcurrencyTest {
     @Autowired private HybridCryptoService crypto;
     @Autowired private ServerKeyHolder serverKey;
     @Autowired private TransactionRepository transactions;
+    @Autowired private ServerKeyMaterialRepository serverKeyMaterials;
 
     @BeforeEach
     void clear() {
@@ -110,6 +113,18 @@ class IdempotencyConcurrencyTest {
         assertEquals(original.getReceiverVpa(), decrypted.getReceiverVpa());
         assertEquals(0, original.getAmount().compareTo(decrypted.getAmount()));
         assertEquals(original.getNonce(), decrypted.getNonce());
+    }
+
+    @Test
+    void sandboxServerKeySurvivesAServiceRestart() throws Exception {
+        String expectedPublicKey = serverKey.getPublicKeyBase64();
+        assertTrue(serverKeyMaterials.findById("active").isPresent());
+
+        ServerKeyHolder restarted = new ServerKeyHolder();
+        ReflectionTestUtils.setField(restarted, "keyMaterialRepository", serverKeyMaterials);
+        restarted.init();
+
+        assertEquals(expectedPublicKey, restarted.getPublicKeyBase64());
     }
 
     @Test
