@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 /**
  * The over-the-wire format. This is what hops from phone to phone via Bluetooth.
@@ -21,16 +24,21 @@ import jakarta.validation.constraints.Max;
 public class MeshPacket {
 
     @NotBlank
+    @Size(min = 8, max = 64)
+    @Pattern(regexp = "[A-Za-z0-9_-]+")
     private String packetId; // UUID, used by intermediates for gossip dedup
 
+    @NotNull
     @Min(0)
     @Max(10)
-    private int ttl; // Hops remaining; intermediates decrement it
+    private Integer ttl; // Hops remaining; intermediates decrement it
 
     @NotNull
+    @Positive
     private Long createdAt; // epoch millis, when sender created the packet
 
     @NotBlank
+    @Size(max = 100_000)
     private String ciphertext; // base64(RSA-encrypted AES key + AES-GCM ciphertext)
 
     public MeshPacket() {}
@@ -38,8 +46,8 @@ public class MeshPacket {
     public String getPacketId() { return packetId; }
     public void setPacketId(String packetId) { this.packetId = packetId; }
 
-    public int getTtl() { return ttl; }
-    public void setTtl(int ttl) { this.ttl = ttl; }
+    public Integer getTtl() { return ttl; }
+    public void setTtl(Integer ttl) { this.ttl = ttl; }
 
     public Long getCreatedAt() { return createdAt; }
     public void setCreatedAt(Long createdAt) { this.createdAt = createdAt; }

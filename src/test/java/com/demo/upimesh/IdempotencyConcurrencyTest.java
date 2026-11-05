@@ -5,6 +5,8 @@ import com.demo.upimesh.crypto.ServerKeyHolder;
 import com.demo.upimesh.model.MeshPacket;
 import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.AccountRepository;
+import com.demo.upimesh.model.Transaction;
+import com.demo.upimesh.model.TransactionRepository;
 import com.demo.upimesh.service.BridgeIngestionService;
 import com.demo.upimesh.service.DemoService;
 import com.demo.upimesh.service.IdempotencyService;
@@ -32,6 +34,7 @@ class IdempotencyConcurrencyTest {
     @Autowired private AccountRepository accounts;
     @Autowired private HybridCryptoService crypto;
     @Autowired private ServerKeyHolder serverKey;
+    @Autowired private TransactionRepository transactions;
 
     @BeforeEach
     void clear() {
@@ -107,5 +110,25 @@ class IdempotencyConcurrencyTest {
         assertEquals(original.getReceiverVpa(), decrypted.getReceiverVpa());
         assertEquals(0, original.getAmount().compareTo(decrypted.getAmount()));
         assertEquals(original.getNonce(), decrypted.getNonce());
+    }
+
+    @Test
+    void wrongSandboxPinIsRejectedAndDurablyDeduplicated() throws Exception {
+        BigDecimal aliceBefore = accounts.findById("alice@demo").orElseThrow().getBalance();
+        BigDecimal bobBefore = accounts.findById("bob@demo").orElseThrow().getBalance();
+        MeshPacket packet = demoService.createPacket(
+                "alice@demo", "bob@demo", new BigDecimal("25.00"), "0000", 5);
+
+        BridgeIngestionService.IngestResult rejected = bridge.ingest(packet, "bridge-test", 1);
+        assertEquals("REJECTED", rejected.outcome());
+        assertEquals("authentication_failed", rejected.reason());
+        Transaction record = transactions.findById(rejected.transactionId()).orElseThrow();
+        assertEquals(Transaction.Status.REJECTED, record.getStatus());
+        assertEquals("AUTHENTICATION_FAILED", record.getRejectionReason());
+        assertEquals(aliceBefore, accounts.findById("alice@demo").orElseThrow().getBalance());
+        assertEquals(bobBefore, accounts.findById("bob@demo").orElseThrow().getBalance());
+
+        BridgeIngestionService.IngestResult duplicate = bridge.ingest(packet, "bridge-retry", 2);
+        assertEquals("DUPLICATE_DROPPED", duplicate.outcome());
     }
 }

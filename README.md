@@ -2,7 +2,7 @@
 
 An educational payment-systems prototype that explores how a small, encrypted payment instruction can be carried across an offline device mesh and reconciled when a bridge node reconnects.
 
-> **Demo only. This project does not connect to UPI, a bank, NPCI, or real funds.** It is not suitable for financial use. The browser queue, simulated PIN, H2 ledger, and server-generated keys are not production security controls.
+> **Demo only. This project does not connect to UPI, a bank, NPCI, or real funds.** It is not suitable for financial use. Browser queueing, the sandbox PIN (`1234`), demo RSA keys, and the simulator are not production security controls.
 
 ## What it demonstrates
 
@@ -10,15 +10,15 @@ An educational payment-systems prototype that explores how a small, encrypted pa
 - Local queueing of encrypted test packets after the dashboard and server public key have been loaded online.
 - A software mesh simulator that gossips packets between virtual devices.
 - Bridge ingestion, packet freshness checks, tamper detection, and duplicate suppression.
-- An H2-backed demo ledger that atomically debits and credits seeded accounts after a packet reaches the backend.
+- A local H2 / deployed Render Postgres demo ledger that atomically updates seeded sandbox accounts after backend verification.
 - A responsive dashboard showing devices, account balances, settlement history, and activity.
 
 ## Demo flow
 
 1. Start the app and open `http://localhost:8080` once while online. The browser caches the dashboard and the server's current public key.
-2. Choose demo accounts and enter a test amount and PIN. The browser encrypts the payment instruction and stores the packet locally. A queued packet is **not** a payment or a promise that settlement will succeed.
+2. Choose demo accounts and enter a test amount and the sandbox PIN `1234`. The browser encrypts the payment instruction and stores the packet locally. A queued packet is **not** a payment or a promise that settlement will succeed.
 3. If the browser is online, **Sync queued packets** sends the packet to the simulated mesh. If offline, the browser keeps it queued until it can reconnect.
-4. Run a gossip round to copy packets to virtual phones, then flush the bridge node to the test ledger.
+4. From the payment status or Mesh Devices, run gossip to copy packets to virtual nodes, then upload bridge packets for verification.
 5. Inspect the account balances and transaction ledger to see the simulated settlement or rejection.
 
 The server creates a new RSA keypair at each startup. Packets encrypted with an old key cannot be decrypted after a restart. The local queue is stored in browser local storage and is not protected against device compromise or user modification.
@@ -31,14 +31,14 @@ flowchart LR
     Q -->|sync when online| M[Virtual mesh simulator]
     M -->|gossip rounds| B[Bridge node]
     B -->|HTTP ingest| I[Idempotency and validation]
-    I --> L[Demo ledger in H2]
+    I --> L[Demo ledger in H2 locally / Postgres on Render]
     L --> D[Dashboard balances and history]
 ```
 
 ## Tech stack
 
 - Java 17, Spring Boot 3.3, Spring MVC, Spring Data JPA
-- H2 in-memory database
+- H2 locally; Render Postgres for deployed demo data
 - Thymeleaf and browser Web Crypto API
 - Maven, Docker, Render Blueprint
 
@@ -78,7 +78,7 @@ This repository includes a Dockerfile and `render.yaml` for a small public demo 
 3. Review the `upi-offline-mesh-demo` service and create it on the Free plan.
 4. Wait for the Docker build and health check at `/health` to pass. Render will provide an `onrender.com` URL.
 
-The demo uses an in-memory H2 database: accounts and transactions reset when the service restarts or redeploys. Free web services spin down after 15 minutes without traffic, and the next request can take about a minute to start. Do not enter real PINs or personal data.
+Local development uses in-memory H2. The Render Blueprint provisions a same-region Postgres database connected over Render's private network, so ledger records survive normal app restarts and deploys. Render's Free Postgres plan expires 30 days after creation; upgrade the database before then if you need to retain data long term. Render Free web services can spin down after idle periods. Do not enter real PINs or personal data.
 
 ## API overview
 
@@ -88,7 +88,8 @@ The demo uses an in-memory H2 database: accounts and transactions reset when the
 | `GET` | `/health` | Host health check |
 | `GET` | `/api/server-key` | Current demo RSA public key |
 | `GET` | `/api/accounts` | Seeded demo accounts |
-| `GET` | `/api/transactions` | Recent simulated settlements |
+| `GET` | `/api/dashboard/summary` | Backend account and transaction totals |
+| `GET` | `/api/transactions` | Simulated settlement and rejection ledger |
 | `POST` | `/api/mesh/inject` | Inject an already-encrypted demo packet |
 | `POST` | `/api/mesh/gossip` | Run one simulated gossip round |
 | `POST` | `/api/mesh/flush` | Send bridge-held packets to the demo ledger |

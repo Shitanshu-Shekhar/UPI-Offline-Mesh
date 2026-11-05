@@ -45,14 +45,18 @@ public class SettlementService {
                         "Unknown receiver VPA: " + instruction.getReceiverVpa()));
 
         BigDecimal amount = instruction.getAmount();
-        if (amount.signum() <= 0) {
-            throw new IllegalArgumentException("Amount must be positive");
+        if (amount == null || amount.signum() <= 0 || amount.scale() > 2
+                || amount.compareTo(new BigDecimal("1000.00")) > 0) {
+            throw new IllegalArgumentException("Amount must be between 0.01 and 1000.00 with at most two decimals");
+        }
+        if (instruction.getSenderVpa().equals(instruction.getReceiverVpa())) {
+            throw new IllegalArgumentException("Sender and receiver must be different accounts");
         }
 
         if (sender.getBalance().compareTo(amount) < 0) {
             log.warn("Insufficient balance: {} has ₹{}, tried to send ₹{}",
                     sender.getVpa(), sender.getBalance(), amount);
-            return recordRejected(instruction, packetHash, bridgeNodeId, hopCount);
+            return recordRejected(instruction, packetHash, bridgeNodeId, hopCount, "INSUFFICIENT_BALANCE");
         }
 
         sender.setBalance(sender.getBalance().subtract(amount));
@@ -79,8 +83,14 @@ public class SettlementService {
         return tx;
     }
 
+    @Transactional
+    public Transaction reject(PaymentInstruction instruction, String packetHash,
+                              String bridgeNodeId, int hopCount, String reason) {
+        return recordRejected(instruction, packetHash, bridgeNodeId, hopCount, reason);
+    }
+
     private Transaction recordRejected(PaymentInstruction instruction, String packetHash,
-                                       String bridgeNodeId, int hopCount) {
+                                       String bridgeNodeId, int hopCount, String reason) {
         Transaction tx = new Transaction();
         tx.setPacketHash(packetHash);
         tx.setSenderVpa(instruction.getSenderVpa());
@@ -91,6 +101,7 @@ public class SettlementService {
         tx.setBridgeNodeId(bridgeNodeId);
         tx.setHopCount(hopCount);
         tx.setStatus(Transaction.Status.REJECTED);
+        tx.setRejectionReason(reason);
         return transactions.save(tx);
     }
 }

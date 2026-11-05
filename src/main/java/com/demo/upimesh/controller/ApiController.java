@@ -4,6 +4,16 @@ import com.demo.upimesh.crypto.ServerKeyHolder;
 import com.demo.upimesh.model.*;
 import com.demo.upimesh.service.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +31,7 @@ import java.util.*;
  *   /api/accounts, /api/transactions → for the dashboard
  */
 @RestController
+@Validated
 @RequestMapping("/api")
 public class ApiController {
 
@@ -50,28 +61,43 @@ public class ApiController {
      * and inject it into the mesh at the given device.
      */
     @PostMapping("/demo/send")
-    public ResponseEntity<?> demoSend(@RequestBody DemoSendRequest req) throws Exception {
+    public ResponseEntity<?> demoSend(@Valid @RequestBody DemoSendRequest req) throws Exception {
+        if (req.senderVpa.equals(req.receiverVpa)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "same_sender_and_receiver"));
+        }
+        if (!accountRepo.existsById(req.senderVpa) || !accountRepo.existsById(req.receiverVpa)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unknown_account"));
+        }
         MeshPacket packet = demo.createPacket(
                 req.senderVpa, req.receiverVpa, req.amount, req.pin,
                 req.ttl == null ? 5 : req.ttl);
 
         String startDevice = req.startDevice == null ? "phone-alice" : req.startDevice;
-        mesh.inject(startDevice, packet);
+        try {
+            mesh.inject(startDevice, packet);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unknown_device"));
+        }
 
         return ResponseEntity.ok(Map.of(
                 "packetId", packet.getPacketId(),
-                "ciphertextPreview", packet.getCiphertext().substring(0, 64) + "...",
                 "ttl", packet.getTtl(),
                 "injectedAt", startDevice
         ));
     }
 
     public static class DemoSendRequest {
+        @NotBlank @Size(max = 100)
         public String senderVpa;
+        @NotBlank @Size(max = 100)
         public String receiverVpa;
+        @NotNull @DecimalMin("0.01") @DecimalMax("1000.00") @Digits(integer = 4, fraction = 2)
         public BigDecimal amount;
+        @NotBlank @Pattern(regexp = "\\d{4}")
         public String pin;
+        @Min(0) @Max(10)
         public Integer ttl;
+        @Size(max = 64)
         public String startDevice;
     }
 
@@ -138,7 +164,7 @@ public class ApiController {
             synchronized (results) {
                 results.add(Map.of(
                         "bridgeNode", up.bridgeNodeId(),
-                        "packetId", up.packet().getPacketId().substring(0, 8),
+                        "packetId", up.packet().getPacketId(),
                         "outcome", r.outcome(),
                         "reason", r.reason() == null ? "" : r.reason(),
                         "transactionId", r.transactionId() == null ? -1 : r.transactionId()
@@ -168,12 +194,14 @@ public class ApiController {
      */
     @PostMapping("/bridge/ingest")
     public ResponseEntity<?> ingest(
-            @RequestBody MeshPacket packet,
+            @Valid @RequestBody MeshPacket packet,
             @RequestHeader(value = "X-Bridge-Node-Id", defaultValue = "unknown") String bridgeNodeId,
-            @RequestHeader(value = "X-Hop-Count", defaultValue = "0") int hopCount) {
+            @Min(0) @Max(100) @RequestHeader(value = "X-Hop-Count", defaultValue = "0") int hopCount) {
 
         BridgeIngestionService.IngestResult r = bridge.ingest(packet, bridgeNodeId, hopCount);
-        return ResponseEntity.ok(r);
+        return "ERROR".equals(r.outcome())
+                ? ResponseEntity.internalServerError().body(Map.of("error", r.reason()))
+                : ResponseEntity.ok(r);
     }
 
     // ------------------------------------------------------------- accounts
@@ -183,8 +211,23 @@ public class ApiController {
         return accountRepo.findAll();
     }
 
+    @GetMapping("/dashboard/summary")
+    public Map<String, Object> dashboardSummary() {
+        BigDecimal availableBalance = accountRepo.findAll().stream()
+                .map(Account::getBalance)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return Map.of(
+                "accountCount", accountRepo.count(),
+                "availableBalance", availableBalance,
+                "transactionCount", txRepo.count(),
+                "settledCount", txRepo.countByStatus(Transaction.Status.SETTLED),
+                "rejectedCount", txRepo.countByStatus(Transaction.Status.REJECTED)
+        );
+    }
+
     @GetMapping("/transactions")
     public List<Transaction> listTransactions() {
-        return txRepo.findTop20ByOrderByIdDesc();
+        return txRepo.findAllByOrderByIdDesc();
     }
 }
