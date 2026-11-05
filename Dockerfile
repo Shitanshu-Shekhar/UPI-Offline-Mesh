@@ -10,4 +10,4 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /workspace/target/upi-offline-mesh-0.0.1-SNAPSHOT.jar /app/app.jar
 USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=60.0", "-jar", "/app/app.jar"]
