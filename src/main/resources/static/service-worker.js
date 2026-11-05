@@ -1,4 +1,4 @@
-const CACHE = 'upi-demo-shell-v1';
+const CACHE = 'upi-demo-shell-v2';
 self.addEventListener('install', event => event.waitUntil((async () => {
   const cache = await caches.open(CACHE);
   await cache.add('/');
